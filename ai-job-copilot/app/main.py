@@ -1,11 +1,16 @@
 from fastapi import FastAPI
-from app.api.v1.routes_jobs import router as jobs_router
+
+from app.api.v1.routes.jobs import router as jobs_router
+from app.db.base import Base
+from app.db.session import engine
 
 app = FastAPI(title="AI Job Copilot")
 
-app.include_router(jobs_router, prefix="/jobs", tags=["Jobs"])
+Base.metadata.create_all(bind=engine)
+
+app.include_router(jobs_router)
 
 
-@app.get("/")
-def root():
-    return {"message": "working"}
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}

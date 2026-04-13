@@ -5,4 +5,7 @@ __pycache__/
 *.log
 .DS_Store
 .idea/
-.vscode/
+.vscode/.env
+.venv/
+_legacy_cleanup_backup/
+
