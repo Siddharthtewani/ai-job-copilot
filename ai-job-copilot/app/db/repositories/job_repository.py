@@ -1,90 +1,40 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.db_models import ResumeBulletDB, UserProfileDB
+from app.models.db_models import JobDescriptionDB
+from app.models.domain_models import ParsedJD
 
 
-def get_active_user_profile(db: Session) -> UserProfileDB | None:
-    stmt = select(UserProfileDB).where(UserProfileDB.is_active.is_(True))
+def create_job_description(db: Session, parsed_jd: ParsedJD) -> JobDescriptionDB:
+    job = JobDescriptionDB(
+        role_title=parsed_jd.role_title,
+        company_name=parsed_jd.company_name,
+        location=parsed_jd.location,
+        seniority=parsed_jd.seniority,
+        employment_type=parsed_jd.employment_type,
+        raw_text=parsed_jd.raw_text,
+        source_url=parsed_jd.source_url,
+        parser_used=parsed_jd.parser_used,
+        parsed_json={
+            "role_title": parsed_jd.role_title,
+            "company_name": parsed_jd.company_name,
+            "location": parsed_jd.location,
+            "seniority": parsed_jd.seniority,
+            "employment_type": parsed_jd.employment_type,
+            "required_skills": parsed_jd.required_skills,
+            "preferred_skills": parsed_jd.preferred_skills,
+            "required_tools": parsed_jd.required_tools,
+            "responsibilities": parsed_jd.responsibilities,
+            "qualifications": parsed_jd.qualifications,
+            "keywords_for_ats": parsed_jd.keywords_for_ats,
+        },
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+def get_job_description_by_id(db: Session, job_id: int) -> JobDescriptionDB | None:
+    stmt = select(JobDescriptionDB).where(JobDescriptionDB.id == job_id)
     return db.execute(stmt).scalar_one_or_none()
-
-
-def create_user_profile(
-    db: Session,
-    *,
-    full_name: str,
-    email: str | None,
-    linkedin_url: str | None,
-    github_url: str | None,
-    professional_summary: str,
-    target_roles: list[str],
-    skills: list[str],
-    tools: list[str],
-    projects: list[str],
-    is_active: bool = True,
-) -> UserProfileDB:
-    profile = UserProfileDB(
-        full_name=full_name,
-        email=email,
-        linkedin_url=linkedin_url,
-        github_url=github_url,
-        professional_summary=professional_summary,
-        target_roles=target_roles,
-        skills=skills,
-        tools=tools,
-        projects=projects,
-        is_active=is_active,
-    )
-    db.add(profile)
-    db.commit()
-    db.refresh(profile)
-    return profile
-
-
-def deactivate_existing_profiles(db: Session) -> None:
-    profiles = db.query(UserProfileDB).filter(UserProfileDB.is_active.is_(True)).all()
-    for profile in profiles:
-        profile.is_active = False
-    db.commit()
-
-
-def create_resume_bullet(
-    db: Session,
-    *,
-    user_profile_id: int,
-    section: str,
-    title: str | None,
-    organization: str | None,
-    bullet_text: str,
-    skills: list[str] | None = None,
-    tools: list[str] | None = None,
-    tags: list[str] | None = None,
-    metrics: list[str] | None = None,
-) -> ResumeBulletDB:
-    bullet = ResumeBulletDB(
-        user_profile_id=user_profile_id,
-        section=section,
-        title=title,
-        organization=organization,
-        bullet_text=bullet_text,
-        skills=skills or [],
-        tools=tools or [],
-        tags=tags or [],
-        metrics=metrics or [],
-    )
-    db.add(bullet)
-    db.commit()
-    db.refresh(bullet)
-    return bullet
-
-
-def get_resume_bullets_for_profile(
-    db: Session,
-    user_profile_id: int,
-) -> list[ResumeBulletDB]:
-    stmt = (
-        select(ResumeBulletDB)
-        .where(ResumeBulletDB.user_profile_id == user_profile_id)
-        .order_by(ResumeBulletDB.id.asc())
-    )
-    return list(db.execute(stmt).scalars().all())
